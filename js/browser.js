@@ -1,4 +1,4 @@
-/* js/browser.js — In-App Web View Engine (No External Tabs) */
+/* js/browser.js — Real Native Mobile Browser Engine */
 (function (E) {
   let currentActiveUrl = "";
 
@@ -6,9 +6,7 @@
     const input = document.getElementById("omnibar-input");
     const btnGo = document.getElementById("btn-go");
     const btnReload = document.getElementById("btn-reload");
-    const btnBack = document.getElementById("btn-back");
     const dlBtn = document.getElementById("btn-web-dl");
-    const frame = document.getElementById("browser-frame");
 
     if (btnGo && input) {
       btnGo.addEventListener("click", () => go(input.value));
@@ -18,21 +16,12 @@
     }
 
     if (btnReload) btnReload.addEventListener("click", reload);
-    if (btnBack) {
-      btnBack.addEventListener("click", () => {
-        if (frame && frame.contentWindow) {
-          try { frame.contentWindow.history.back(); } catch (_) {}
-        }
-      });
-    }
 
     // Media Sniffer Event
     window.addEventListener("esa:media-found", (e) => {
       if (!dlBtn || !e.detail || !e.detail.url) return;
       dlBtn.classList.remove("opacity-40", "pointer-events-none");
       dlBtn.classList.add("animate-pulse");
-      const badge = document.getElementById("sniffed-badge");
-      if (badge) badge.innerText = "⬇ Download Stream";
 
       dlBtn.onclick = () => {
         const dirInput = document.getElementById("direct-link-input");
@@ -44,14 +33,30 @@
     });
   }
 
+  async function openNativeUrl(url) {
+    // 1. Android Native Capacitor Browser (Full Unrestricted Engine)
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+      try {
+        await window.Capacitor.Plugins.Browser.open({
+          url: url,
+          toolbarColor: '#0a0e1a'
+        });
+        return;
+      } catch (err) {
+        console.warn("[Browser] Native plugin fallback:", err);
+      }
+    }
+
+    // 2. Fallback window open
+    window.open(url, '_blank');
+  }
+
   function go(query) {
     if (!query || !query.trim()) return;
     query = query.trim();
 
     const input = document.getElementById("omnibar-input");
     const domainLabel = document.getElementById("tab-status-domain");
-    const frame = document.getElementById("browser-frame");
-    const loader = document.getElementById("browser-loader");
 
     let targetUrl = "";
     const isDomain = query.includes(".") && !query.includes(" ");
@@ -61,8 +66,7 @@
         ? query 
         : "https://" + query;
     } else {
-      // Keyword search direct
-      targetUrl = "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(query);
+      targetUrl = "https://duckduckgo.com/?q=" + encodeURIComponent(query);
     }
 
     currentActiveUrl = targetUrl;
@@ -72,18 +76,8 @@
     try { domainName = new URL(targetUrl).hostname; } catch (_) {}
     if (domainLabel) domainLabel.innerText = domainName;
 
-    // Show loading
-    if (loader) loader.classList.remove("hidden");
-
-    // SEEDHA ISI FRAME KE ANDAR LOAD KARO (KISI NAYE TAB ME NAHI JAYEGA)
-    if (frame) {
-      frame.removeAttribute("srcdoc");
-      frame.src = targetUrl;
-
-      frame.onload = () => {
-        if (loader) loader.classList.add("hidden");
-      };
-    }
+    // ANDROID NATIVE ENGINE TRIGGER (Zero Iframe Block)
+    openNativeUrl(targetUrl);
 
     if (E.tabs && E.tabs.updateActiveTabTitle) {
       E.tabs.updateActiveTabTitle(domainName, targetUrl);
