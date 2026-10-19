@@ -1,0 +1,7 @@
+{
+  "appId": "com.esa.pwd",
+  "appName": "ESA PWD",
+  "webDir": "www",
+  "android": { "allowMixedContent": false },
+  "plugins": { "CapacitorHttp": { "enabled": true } }
+}

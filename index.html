@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#030407">
+  <title>ESA PWD — Pro Edition</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/tailwind.css">
+</head>
+<body class="app-root">
+
+  <!-- ═══ HEADER ═══ -->
+  <header class="app-header">
+    <div class="flex items-center gap-2">
+      <div class="brand-icon">⚡</div>
+      <span class="brand-name">ESA PWD</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <div class="shield-compact" id="shield-toggle-btn" title="Ad-Shield Active" role="button" aria-label="Toggle shield">
+        <span class="shield-dot"></span>
+        <span>🛡️</span>
+      </div>
+      <button class="btn-glyph" data-open-drawer="bookmark" title="Bookmarks">⭐</button>
+      <button class="btn-glyph !w-auto px-2 gap-1" data-open-drawer="vault" title="My Folder">
+        📂 <span id="vault-count-badge" class="text-[0.65rem] font-extrabold text-accent">0</span>
+      </button>
+      <button class="btn-glyph" data-open-drawer="settings" title="Settings">⚙️</button>
+    </div>
+  </header>
+
+  <!-- ═══ VIEWPORTS ═══ -->
+  <main class="relative flex-1 overflow-hidden">
+
+    <!-- TAB 1: DIRECT LINK EXTRACTOR -->
+    <section id="tab-direct" class="tab-page active">
+      <div class="flex flex-col gap-3.5 p-4">
+        <div class="pro-card">
+          <div class="text-[0.9rem] font-bold">Direct Link Downloader</div>
+          <div class="-mt-1.5 text-[0.72rem] text-dim">Seedha file ka link paste karo (.mp4, .mp3, .pdf, .zip ...). YouTube/social pages support nahi.</div>
+          <div class="input-wrap">
+            <input type="text" id="direct-link-input" placeholder="Paste media stream link..." autocomplete="off" autocapitalize="off" spellcheck="false">
+            <button class="btn-pill" id="btn-paste">Paste</button>
+          </div>
+          <button class="btn-launch" id="btn-extract"><span>⬇ DOWNLOAD</span></button>
+        </div>
+        <div class="flex flex-col gap-2" id="downloads-list"></div>
+      </div>
+    </section>
+
+    <!-- TAB 2: CHROME-STYLE MULTI-TAB BROWSER -->
+    <section id="tab-browser" class="tab-page !overflow-hidden">
+      <div class="flex h-full flex-col bg-black">
+        <div class="tab-strip" id="tabs-strip"></div>
+
+        <div class="toolbar">
+          <button class="btn-glyph !w-8" id="btn-back" title="Back">‹</button>
+          <button class="btn-glyph !w-8" id="btn-reload" title="Reload">↻</button>
+          <div class="omnibox">
+            <span class="text-[0.75rem] text-dim">🔍</span>
+            <input type="text" id="omnibar-input" placeholder="Type URL or search blocked site..." autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+          </div>
+          <button class="btn-glyph" id="btn-bookmark" title="Bookmark">⭐</button>
+          <button class="btn-pill solid" id="btn-go">Go</button>
+        </div>
+
+        <!-- REAL BROWSER VIEWPORT & SNIFFER STATUS -->
+        <div class="relative flex-1 min-h-0 flex flex-col bg-surface overflow-hidden">
+          <div class="flex items-center justify-between px-3 py-1.5 bg-surface border-b border-line text-[0.68rem] text-dim">
+            <div class="flex items-center gap-1.5 overflow-hidden">
+              <span class="inline-block w-2 h-2 rounded-full bg-emerald" id="proxy-status-dot" title="Proxy Active"></span>
+              <span class="truncate font-mono text-[0.7rem] text-accent" id="tab-status-domain">duckduckgo.com</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="btn-pill !py-0.5 !px-2 text-[0.65rem]" id="btn-switch-proxy" title="Switch Country Server">🌐 Tunnel: NL</button>
+              <button class="btn-pill solid !py-0.5 !px-2 text-[0.65rem] opacity-40 pointer-events-none transition-all" id="btn-web-dl" title="Download Sniffed Video">
+                ⬇ <span id="sniffed-badge">No Media</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Active Web View (Full Height Iframe) -->
+          <div class="relative flex-1 min-h-0 w-full h-full bg-white">
+            <iframe 
+              id="browser-frame" 
+              class="w-full h-full border-0 block" 
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads" 
+              src="https://html.duckduckgo.com/html/?q=welcome">
+            </iframe>
+            
+            <div id="browser-loader" class="absolute inset-0 bg-void/80 backdrop-blur-sm flex items-center justify-center hidden">
+              <div class="flex flex-col items-center gap-2">
+                <div class="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
+                <span class="text-[0.72rem] text-dim font-medium">Bypassing &amp; Loading Web View...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ═══ QUALITY SHEET ═══ -->
+  <div class="modal-shade" id="quality-sheet">
+    <div class="sheet-box" id="quality-box">
+      <div class="sheet-handle"></div>
+      <div class="flex items-center justify-between">
+        <span class="text-[0.9rem] font-bold">Format &amp; Quality</span>
+        <span class="text-[0.68rem] text-accent">Detected Stream</span>
+      </div>
+      <div class="flex flex-col gap-1.5" id="quality-options-list">
+        <div class="q-row active" data-quality="Source Original" data-format="MP4" data-size="Auto">
+          <div><div class="text-[0.8rem] font-bold">Original Direct Stream</div><div class="text-[0.65rem] text-dim">Sniffed Video Stream · MP4 / HLS</div></div>
+          <span class="text-[0.75rem] text-dim">Direct</span>
+        </div>
+      </div>
+      <button class="btn-launch !py-2.5 !text-[0.85rem]" id="btn-save-vault">⬇ Save to Vault</button>
+    </div>
+  </div>
+
+  <!-- ═══ DRAWER: VAULT ═══ -->
+  <div class="app-drawer" id="drawer-vault">
+    <div class="drawer-head">
+      <span class="text-[0.9rem] font-bold">📂 Private Offline Vault</span>
+      <button class="btn-pill" data-close-drawer="vault">✕</button>
+    </div>
+    <div class="drawer-content" id="vault-list-container"></div>
+  </div>
+
+  <!-- ═══ DRAWER: BOOKMARKS ═══ -->
+  <div class="app-drawer" id="drawer-bookmark">
+    <div class="drawer-head">
+      <span class="text-[0.9rem] font-bold">⭐ Private Bookmarks</span>
+      <button class="btn-pill" data-close-drawer="bookmark">✕</button>
+    </div>
+    <div class="drawer-content" id="bookmark-list-container"></div>
+  </div>
+
+  <!-- ═══ DRAWER: SETTINGS ═══ -->
+  <div class="app-drawer" id="drawer-settings">
+    <div class="drawer-head">
+      <span class="text-[0.9rem] font-bold">⚙️ Pro Engine Settings</span>
+      <button class="btn-pill" data-close-drawer="settings">✕</button>
+    </div>
+    <div class="drawer-content">
+      <div class="settings-cat">🛡️ Security &amp; Privacy Shield</div>
+      <div class="setting-box">
+        <div><div class="text-[0.8rem] font-bold">Foreign Proxy Tunnel</div><div class="text-[0.65rem] text-dim">Bypass ISP filters via Netherlands/EU gateway</div></div>
+        <div class="toggle-switch on" id="toggle-proxy-engine" role="switch"></div>
+      </div>
+      <div class="setting-box">
+        <div><div class="text-[0.8rem] font-bold">Media Sniffer</div><div class="text-[0.65rem] text-dim">Auto-detect .mp4 &amp; .m3u8 video streams</div></div>
+        <div class="toggle-switch on" id="toggle-media-sniffer" role="switch"></div>
+      </div>
+      <div class="setting-box">
+        <div><div class="text-[0.8rem] font-bold">AMOLED Battery Saver</div><div class="text-[0.65rem] text-dim">Pure black OLED mode, animations band</div></div>
+        <div class="toggle-switch" id="toggle-battery" role="switch"></div>
+      </div>
+
+      <div class="settings-cat">🌍 Network Help</div>
+      <div class="setting-box !flex-col !items-stretch">
+        <div class="text-[0.8rem] font-bold">Private DNS Bypass</div>
+        <div class="whitespace-pre-line text-[0.68rem] leading-relaxed text-dim">Phone Settings → Network &amp; internet → Private DNS me neeche wala hostname save karo to bypass ISP blocks:</div>
+        <div class="flex items-center justify-between gap-2">
+          <code class="rounded-lg bg-surface px-2 py-1 text-[0.72rem] text-accent" id="dns-name">dns.google</code>
+          <button class="btn-pill" id="btn-copy-dns">Copy</button>
+        </div>
+      </div>
+
+      <div class="settings-cat !text-danger">🚨 Emergency Actions</div>
+      <div class="setting-box" style="border-color:rgba(244,63,94,.25);background:rgba(244,63,94,.04)">
+        <div><div class="text-[0.8rem] font-bold text-danger">Panic Wipe All Storage</div><div class="text-[0.65rem] text-dim">Immediately clear all vault files, bookmarks &amp; cache</div></div>
+        <button class="btn-pill red" id="btn-wipe">Wipe All</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PLAYER ═══ -->
+  <div class="app-drawer !z-[180]" id="player-modal">
+    <div class="drawer-head">
+      <span class="truncate text-[0.85rem] font-bold" id="player-title">Player</span>
+      <button class="btn-pill" id="btn-player-close">✕</button>
+    </div>
+    <div class="flex flex-1 items-center justify-center bg-black p-3" id="player-host"></div>
+  </div>
+
+  <!-- ═══ CONFIRM DIALOG ═══ -->
+  <div class="modal-shade center !z-[250]" id="confirm-modal">
+    <div class="dialog-box">
+      <div class="whitespace-pre-line text-[0.82rem] leading-relaxed" id="confirm-text"></div>
+      <div class="flex justify-end gap-2">
+        <button class="btn-pill" id="confirm-cancel">Cancel</button>
+        <button class="btn-pill red" id="confirm-ok">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TOASTS ═══ -->
+  <div id="toast-host" class="pointer-events-none fixed inset-x-0 top-14 z-[300] flex flex-col items-center gap-2"></div>
+
+  <!-- ═══ BOTTOM DOCK ═══ -->
+  <nav class="app-dock">
+    <button class="dock-item" data-tab="direct">
+      <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+      <span>Direct</span>
+    </button>
+    <button class="dock-item active" data-tab="browser">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+      <span>Browser</span>
+    </button>
+  </nav>
+
+  <!-- ═══ SCRIPTS ═══ -->
+  <script>
+    window.ESA = window.ESA || {};
+  </script>
+  <script defer src="js/config.js"></script>
+  <script defer src="js/utils.js"></script>
+  <script defer src="js/state.js"></script>
+  <script defer src="js/ui.js"></script>
+  <script defer src="js/db.js"></script>
+  <script defer src="js/proxy.js"></script>
+  <script defer src="js/sniffer.js"></script>
+  <script defer src="js/nav.js"></script>
+  <script defer src="js/shield.js"></script>
+  <script defer src="js/settings.js"></script>
+  <script defer src="js/tabs.js"></script>
+  <script defer src="js/browser.js"></script>
+  <script defer src="js/player.js"></script>
+  <script defer src="js/vault.js"></script>
+  <script defer src="js/downloader.js"></script>
+  <script defer src="js/quality.js"></script>
+  <script defer src="js/direct.js"></script>
+  <script defer src="js/bookmarks.js"></script>
+  <script defer src="js/wipe.js"></script>
+  <script defer src="js/main.js"></script>
+</body>
+</html>
