@@ -39,6 +39,7 @@ jobs:
         run: |
           npx cap add android || true
           npx cap sync android
+          sed -i 's/minSdkVersion = [0-9]*/minSdkVersion = 26/g' android/variables.gradle || true
           echo "configurations.all { resolutionStrategy { force 'androidx.browser:browser:1.8.0' } }" >> android/app/build.gradle
 
       - name: Build Debug APK
