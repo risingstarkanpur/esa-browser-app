@@ -24,9 +24,6 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Dependencies
         run: |
           npm install
@@ -43,12 +40,10 @@ jobs:
           npx cap add android || true
           npx cap sync android
 
-      - name: Grant Execute Permission to Gradle
-        run: chmod +x android/gradlew
-
       - name: Build Debug APK
         run: |
           cd android
+          chmod +x gradlew
           ./gradlew assembleDebug
 
       - name: Upload APK to GitHub
