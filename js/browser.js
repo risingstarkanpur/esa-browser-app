@@ -1,4 +1,4 @@
-/* js/browser.js — Real Native Mobile Browser Engine */
+/* js/browser.js — 100% Inside-App Web Engine (Never opens external Chrome) */
 (function (E) {
   let currentActiveUrl = "";
 
@@ -6,7 +6,10 @@
     const input = document.getElementById("omnibar-input");
     const btnGo = document.getElementById("btn-go");
     const btnReload = document.getElementById("btn-reload");
+    const btnBack = document.getElementById("btn-back");
     const dlBtn = document.getElementById("btn-web-dl");
+    const frame = document.getElementById("browser-frame");
+    const loader = document.getElementById("browser-loader");
 
     if (btnGo && input) {
       btnGo.addEventListener("click", () => go(input.value));
@@ -17,11 +20,27 @@
 
     if (btnReload) btnReload.addEventListener("click", reload);
 
-    // Media Sniffer Event
+    if (btnBack) {
+      btnBack.addEventListener("click", () => {
+        if (frame && frame.contentWindow) {
+          try { frame.contentWindow.history.back(); } catch (_) {}
+        }
+      });
+    }
+
+    if (frame) {
+      frame.addEventListener("load", () => {
+        if (loader) loader.classList.add("hidden");
+      });
+    }
+
+    // Media Sniffer (Video aate hi Download button glow karega)
     window.addEventListener("esa:media-found", (e) => {
       if (!dlBtn || !e.detail || !e.detail.url) return;
       dlBtn.classList.remove("opacity-40", "pointer-events-none");
       dlBtn.classList.add("animate-pulse");
+      const badge = document.getElementById("sniffed-badge");
+      if (badge) badge.innerText = "⬇ Download Stream";
 
       dlBtn.onclick = () => {
         const dirInput = document.getElementById("direct-link-input");
@@ -31,24 +50,11 @@
         if (E.ui && E.ui.toast) E.ui.toast("Stream sent to Direct Downloader!");
       };
     });
-  }
 
-  async function openNativeUrl(url) {
-    // 1. Android Native Capacitor Browser (Full Unrestricted Engine)
-    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
-      try {
-        await window.Capacitor.Plugins.Browser.open({
-          url: url,
-          toolbarColor: '#0a0e1a'
-        });
-        return;
-      } catch (err) {
-        console.warn("[Browser] Native plugin fallback:", err);
-      }
+    // Default start screen inside app
+    if (!currentActiveUrl) {
+      go("https://www.bing.com");
     }
-
-    // 2. Fallback window open
-    window.open(url, '_blank');
   }
 
   function go(query) {
@@ -57,6 +63,8 @@
 
     const input = document.getElementById("omnibar-input");
     const domainLabel = document.getElementById("tab-status-domain");
+    const frame = document.getElementById("browser-frame");
+    const loader = document.getElementById("browser-loader");
 
     let targetUrl = "";
     const isDomain = query.includes(".") && !query.includes(" ");
@@ -66,7 +74,8 @@
         ? query 
         : "https://" + query;
     } else {
-      targetUrl = "https://duckduckgo.com/?q=" + encodeURIComponent(query);
+      // Bing / Embed search engine (App ke andar hi render hota hai)
+      targetUrl = "https://www.bing.com/search?q=" + encodeURIComponent(query);
     }
 
     currentActiveUrl = targetUrl;
@@ -76,8 +85,14 @@
     try { domainName = new URL(targetUrl).hostname; } catch (_) {}
     if (domainLabel) domainLabel.innerText = domainName;
 
-    // ANDROID NATIVE ENGINE TRIGGER (Zero Iframe Block)
-    openNativeUrl(targetUrl);
+    // Show loading spinner
+    if (loader) loader.classList.remove("hidden");
+
+    // 100% IN-APP: SEEDHA APP KI SCREEN KE ANDAR LOAD KARO
+    if (frame) {
+      frame.removeAttribute("srcdoc");
+      frame.src = targetUrl;
+    }
 
     if (E.tabs && E.tabs.updateActiveTabTitle) {
       E.tabs.updateActiveTabTitle(domainName, targetUrl);
