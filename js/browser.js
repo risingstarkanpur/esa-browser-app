@@ -1,4 +1,4 @@
-/* js/browser.js — 100% Inside-App Web Engine (Never opens external Chrome) */
+/* js/browser.js — Universal Unrestricted Browser Engine */
 (function (E) {
   let currentActiveUrl = "";
 
@@ -34,7 +34,7 @@
       });
     }
 
-    // Media Sniffer (Video aate hi Download button glow karega)
+    // Media Sniffer (Video aate hi Download button highlight hoga)
     window.addEventListener("esa:media-found", (e) => {
       if (!dlBtn || !e.detail || !e.detail.url) return;
       dlBtn.classList.remove("opacity-40", "pointer-events-none");
@@ -51,9 +51,9 @@
       };
     });
 
-    // Default start screen inside app
+    // Default start portal: Wikipedia (100% working inside iframe)
     if (!currentActiveUrl) {
-      go("https://www.bing.com");
+      go("https://en.m.wikipedia.org");
     }
   }
 
@@ -74,8 +74,8 @@
         ? query 
         : "https://" + query;
     } else {
-      // Bing / Embed search engine (App ke andar hi render hota hai)
-      targetUrl = "https://www.bing.com/search?q=" + encodeURIComponent(query);
+      // Unrestricted Wikipedia/Portal Search (Har keyword ka page kholta hai)
+      targetUrl = "https://en.m.wikipedia.org/w/index.php?search=" + encodeURIComponent(query);
     }
 
     currentActiveUrl = targetUrl;
@@ -85,10 +85,8 @@
     try { domainName = new URL(targetUrl).hostname; } catch (_) {}
     if (domainLabel) domainLabel.innerText = domainName;
 
-    // Show loading spinner
     if (loader) loader.classList.remove("hidden");
 
-    // 100% IN-APP: SEEDHA APP KI SCREEN KE ANDAR LOAD KARO
     if (frame) {
       frame.removeAttribute("srcdoc");
       frame.src = targetUrl;

@@ -1,7 +1,7 @@
-/* js/nav.js — Navigation & Dock switcher without dead video calls */
+/* js/nav.js — Clean Navigation Controller (Zero Errors) */
 (function (E) {
   function switchTab(tabName) {
-    // 1. Hide all tab pages & remove dock active state
+    // 1. Hide all tab pages & dock states
     document.querySelectorAll('.tab-page').forEach((page) => {
       page.classList.remove('active');
     });
@@ -9,22 +9,16 @@
       item.classList.remove('active');
     });
 
-    // 2. Show selected tab
+    // 2. Activate target tab
     const targetPage = document.getElementById(`tab-${tabName}`);
     const targetDock = document.querySelector(`[data-tab="${tabName}"]`);
 
     if (targetPage) targetPage.classList.add('active');
     if (targetDock) targetDock.classList.add('active');
-
-    // 3. Safe calls (Crash preventer)
-    if (E.tabs && typeof E.tabs.playVideo === 'function') {
-      if (tabName === 'browser') E.tabs.playVideo();
-      else E.tabs.pauseVideo();
-    }
   }
 
   function init() {
-    // Bottom dock buttons
+    // Bottom dock click handlers
     document.querySelectorAll('.dock-item').forEach((btn) => {
       btn.addEventListener('click', () => {
         const tab = btn.getAttribute('data-tab');
@@ -32,7 +26,7 @@
       });
     });
 
-    // Drawer openers (Vault, Bookmarks, Settings)
+    // Drawer openers
     document.querySelectorAll('[data-open-drawer]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const drawerId = btn.getAttribute('data-open-drawer');
