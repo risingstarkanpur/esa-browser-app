@@ -1,14 +1,12 @@
-/* js/downloader.js — In-App Stream Downloader with Live Progress & Vault Storage */
+/* js/downloader.js — Real In-App Downloader with Native IndexedDB Vault Storage */
 (function (E) {
-  const activeDownloads = new Map();
-
-  function start(url) {
+  function start(url, customName) {
     if (!url) return;
 
     const id = "dl_" + Date.now();
-    const fileName = url.split("?")[0].split("/").pop() || `video_${Date.now()}.mp4`;
+    const fileName = customName || url.split("?")[0].split("/").pop() || `video_${Date.now()}.mp4`;
 
-    // 1. Create In-App Download Card in #downloads-list
+    // 1. INSTANT CARD (0 Millisecond me screen par aayega)
     const list = document.getElementById("downloads-list");
     if (!list) return;
 
@@ -21,19 +19,17 @@
         <span class="text-[0.72rem] font-mono text-accent" id="${id}-percent">0%</span>
       </div>
       <div class="w-full bg-surface h-2 rounded-full overflow-hidden">
-        <div id="${id}-bar" class="bg-primary h-full transition-all duration-150" style="width: 0%"></div>
+        <div id="${id}-bar" class="bg-primary h-full transition-all duration-150" style="width: 5%"></div>
       </div>
       <div class="flex items-center justify-between text-[0.65rem] text-dim">
-        <span id="${id}-status">Connecting stream...</span>
+        <span id="${id}-status">Connecting to stream...</span>
         <button class="btn-pill red !py-0.5 !px-2" id="${id}-cancel">Cancel</button>
       </div>
     `;
     list.prepend(card);
 
-    // Cancel Button
-    const cancelBtn = document.getElementById(`${id}-cancel`);
     const abortController = new AbortController();
-
+    const cancelBtn = document.getElementById(`${id}-cancel`);
     if (cancelBtn) {
       cancelBtn.addEventListener("click", () => {
         abortController.abort();
@@ -42,47 +38,28 @@
       });
     }
 
-    // 2. Start In-App Streaming Download
-    runStreamDownload(url, id, fileName, abortController.signal);
+    // 2. Stream & Save Execution
+    runDownload(url, id, fileName, abortController.signal);
   }
 
-  async function runStreamDownload(targetUrl, id, fileName, signal) {
+  async function runDownload(url, id, fileName, signal) {
     const bar = document.getElementById(`${id}-bar`);
     const percentLabel = document.getElementById(`${id}-percent`);
     const statusLabel = document.getElementById(`${id}-status`);
 
-    let downloadUrl = targetUrl;
-    let isProxied = false;
-
-    async function attemptFetch(fetchUrl) {
-      return await fetch(fetchUrl, {
-        signal: signal,
-        headers: { "Accept": "*/*" }
-      });
-    }
-
     try {
-      let res;
-      try {
-        // Direct fetch try
-        res = await attemptFetch(downloadUrl);
-        if (!res.ok) throw new Error("Direct fetch failed: " + res.status);
-      } catch (err) {
-        // CORS / 403 Fallback: Tunnel through proxy
-        if (statusLabel) statusLabel.innerText = "Bypassing server restrictions...";
-        downloadUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-        isProxied = true;
-        res = await attemptFetch(downloadUrl);
-      }
+      if (statusLabel) statusLabel.innerText = "Downloading stream...";
+      
+      const res = await fetch(url, { signal: signal });
+      if (!res.ok) throw new Error("Server response: " + res.status);
 
+      const contentType = res.headers.get("content-type") || "";
       const contentLength = res.headers.get("content-length");
       const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
       let receivedBytes = 0;
 
       const reader = res.body.getReader();
       const chunks = [];
-
-      if (statusLabel) statusLabel.innerText = "Downloading stream...";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -96,55 +73,67 @@
           if (bar) bar.style.width = percent + "%";
           if (percentLabel) percentLabel.innerText = percent + "%";
           if (statusLabel) {
-            statusLabel.innerText = `${(receivedBytes / (1024 * 1024)).toFixed(1)} MB / ${(totalBytes / (1024 * 1024)).toFixed(1)} MB`;
+            statusLabel.innerText = `${(receivedBytes / (1024 * 1024)).toFixed(2)} MB / ${(totalBytes / (1024 * 1024)).toFixed(2)} MB`;
           }
         } else {
-          // Chunk mode if no length header
-          if (bar) bar.style.width = "75%";
-          if (statusLabel) statusLabel.innerText = `${(receivedBytes / (1024 * 1024)).toFixed(1)} MB downloaded`;
+          if (bar) bar.style.width = "70%";
+          if (statusLabel) statusLabel.innerText = `${(receivedBytes / (1024 * 1024)).toFixed(2)} MB`;
         }
       }
 
-      // 3. Download Complete -> Create Blob & Save to Vault
-      const blob = new Blob(chunks, { type: "video/mp4" });
+      // Check if received file is actual media
+      const blob = new Blob(chunks, { type: contentType.includes("audio") ? "audio/mp3" : "video/mp4" });
 
-      if (percentLabel) percentLabel.innerText = "100%";
+      if (blob.size < 1000) {
+        throw new Error("Invalid or empty stream received.");
+      }
+
+      // 3. REAL ASLI SAVE TO INDEXEDDB VAULT
+      const record = {
+        id: "vault_" + Date.now(),
+        name: fileName.endsWith(".mp4") ? fileName : fileName + ".mp4",
+        size: blob.size,
+        type: blob.type,
+        blob: blob,
+        date: Date.now()
+      };
+
+      if (E.db && typeof E.db.put === "function") {
+        await E.db.put("vault", record);
+      }
+
+      // Vault UI update
+      if (E.vault && typeof E.vault.render === "function") {
+        E.vault.render();
+      }
+
+      // Update badge
+      const badge = document.getElementById("vault-count-badge");
+      if (badge && E.db) {
+        const all = await E.db.getAll("vault");
+        badge.innerText = all.length;
+      }
+
       if (bar) bar.style.width = "100%";
-      if (statusLabel) statusLabel.innerText = "✅ Saved to Vault!";
-
-      // Save to IndexedDB Vault
-      if (E.vault && typeof E.vault.saveBlob === "function") {
-        await E.vault.saveBlob(fileName, blob);
-      } else {
-        // Fallback local file save
-        const downloadLink = document.createElement("a");
-        downloadLink.href = URL.createObjectURL(blob);
-        downloadLink.download = fileName;
-        downloadLink.click();
+      if (percentLabel) percentLabel.innerText = "100%";
+      if (statusLabel) {
+        statusLabel.innerText = "✅ Saved to Vault!";
+        statusLabel.classList.add("text-ok");
       }
 
       if (E.ui && E.ui.toast) {
-        E.ui.toast("🎉 Video downloaded & saved to Vault!");
+        E.ui.toast("🎉 Video Vault me save ho gayi hai!");
       }
 
-      // Update badge count
-      const badge = document.getElementById("vault-count-badge");
-      if (badge) {
-        const count = parseInt(badge.innerText || "0", 10) + 1;
-        badge.innerText = count;
-      }
-
-    } catch (error) {
-      if (error.name === "AbortError") return;
+    } catch (err) {
+      if (err.name === "AbortError") return;
       if (statusLabel) {
-        statusLabel.innerText = "⚠️ Download failed. Check network.";
+        statusLabel.innerText = "⚠️ Failed: " + err.message;
         statusLabel.classList.add("text-danger");
       }
-      if (E.ui && E.ui.toast) E.ui.toast("Download error: " + error.message);
+      if (E.ui && E.ui.toast) E.ui.toast("Download error: " + err.message);
     }
   }
 
-  E.downloader = {
-    start
-  };
+  E.downloader = { start };
 })(window.ESA = window.ESA || {});
