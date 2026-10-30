@@ -23,7 +23,9 @@
       </div>
       <div class="flex items-center justify-between text-[0.65rem] text-dim">
         <span id="${id}-status">Connecting to stream...</span>
-        <button class="btn-pill red !py-0.5 !px-2" id="${id}-cancel">Cancel</button>
+        <div id="${id}-actions">
+          <button class="btn-pill red !py-0.5 !px-2" id="${id}-cancel">Cancel</button>
+        </div>
       </div>
     `;
     list.prepend(card);
@@ -46,6 +48,7 @@
     const bar = document.getElementById(`${id}-bar`);
     const percentLabel = document.getElementById(`${id}-percent`);
     const statusLabel = document.getElementById(`${id}-status`);
+    const actionsBox = document.getElementById(`${id}-actions`);
 
     try {
       if (statusLabel) statusLabel.innerText = "Downloading stream...";
@@ -76,19 +79,19 @@
             statusLabel.innerText = `${(receivedBytes / (1024 * 1024)).toFixed(2)} MB / ${(totalBytes / (1024 * 1024)).toFixed(2)} MB`;
           }
         } else {
-          if (bar) bar.style.width = "70%";
+          if (bar) bar.style.width = "75%";
           if (statusLabel) statusLabel.innerText = `${(receivedBytes / (1024 * 1024)).toFixed(2)} MB`;
         }
       }
 
-      // Check if received file is actual media
+      // 3. Create Blob
       const blob = new Blob(chunks, { type: contentType.includes("audio") ? "audio/mp3" : "video/mp4" });
 
       if (blob.size < 1000) {
         throw new Error("Invalid or empty stream received.");
       }
 
-      // 3. REAL ASLI SAVE TO INDEXEDDB VAULT
+      // 4. REAL ASLI SAVE TO INDEXEDDB VAULT
       const record = {
         id: "vault_" + Date.now(),
         name: fileName.endsWith(".mp4") ? fileName : fileName + ".mp4",
@@ -107,18 +110,39 @@
         E.vault.render();
       }
 
-      // Update badge
+      // Update badge safely
       const badge = document.getElementById("vault-count-badge");
       if (badge && E.db) {
-        const all = await E.db.getAll("vault");
-        badge.innerText = all.length;
+        try {
+          const all = await E.db.getAll("vault");
+          badge.innerText = (all || []).length;
+        } catch (_) {}
       }
 
       if (bar) bar.style.width = "100%";
       if (percentLabel) percentLabel.innerText = "100%";
       if (statusLabel) {
         statusLabel.innerText = "✅ Saved to Vault!";
+        statusLabel.classList.remove("text-danger");
         statusLabel.classList.add("text-ok");
+      }
+
+      // REPLACE CANCEL BUTTON WITH PLAY BUTTON
+      if (actionsBox) {
+        actionsBox.innerHTML = `
+          <button class="btn-pill solid !py-0.5 !px-2.5 text-[0.68rem]" id="${id}-play">Play ▶</button>
+        `;
+        const playBtn = document.getElementById(`${id}-play`);
+        if (playBtn) {
+          playBtn.addEventListener("click", () => {
+            if (E.player && typeof E.player.open === "function") {
+              E.player.open(record);
+            } else {
+              const drawer = document.getElementById("drawer-vault");
+              if (drawer) drawer.classList.add("open");
+            }
+          });
+        }
       }
 
       if (E.ui && E.ui.toast) {

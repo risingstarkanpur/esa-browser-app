@@ -26,7 +26,6 @@
 
   // Fast Social Media Resolver
   async function resolveSocialUrl(url) {
-    // Free Public Fast Reel Resolver
     try {
       const apiUrl = `https://api.vkrdownloader.com/server?vkr=${encodeURIComponent(url)}`;
       const res = await fetch(apiUrl);
@@ -68,7 +67,7 @@
       return;
     }
 
-    // Direct Stream link: Instant Start!
+    // Direct Stream link: Instant 0ms Start!
     if (E.downloader) {
       E.downloader.start(url);
     }
